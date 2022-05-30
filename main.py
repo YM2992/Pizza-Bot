@@ -57,9 +57,12 @@ cv2.setMouseCallback("pizza_game_capture", click)
 
 resize_scale_percent = (60 / 100)
 
-game = Game()
+game = Game(capture_width, capture_height)
 
 while True:
+    # Update game capture size
+    game.update_capture_bounds(w.width, w.height)
+
     # Capture application screen
     img = pyautogui.screenshot(region=(w.left, w.top, w.width, w.height))
     frame = np.array(img)
@@ -68,28 +71,27 @@ while True:
     # Convert text image to grayscale and apply binary threshold
     threshold_img = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     # Crop image
-    threshold_img = threshold_img[game.text_position["y"]:game.text_position["height"], game.text_position["x"]:game.text_position["width"]]
+    threshold_img = threshold_img[game.text_bounds["y"]:game.text_bounds["height"], game.text_bounds["x"]:game.text_bounds["width"]]
   
     threshold_img = cv2.threshold(threshold_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     # Extract text data from image
     custom_config = r'--oem 3 --psm 6'
     details = pytesseract.image_to_data(threshold_img, output_type=Output.DICT, config=custom_config, lang="eng")
     
-    total_text_boxes = len(details["text"])
     game.text = ""
     # Loop through recognised text and apply a border to each word
-    for i in range(total_text_boxes):
+    for i in range(len(details["text"])):
         if int(float(details["conf"][i])) > 75:
             game.text += details["text"][i] + " "
 
             (x, y, width, height) = (details["left"][i], details["top"][i], details["width"][i], details["height"][i])
             
-            x += game.text_position["x"]
-            y += game.text_position["y"]
+            x += game.text_bounds["x"]
+            y += game.text_bounds["y"]
             frame = cv2.rectangle(frame, (x, y), (x+width, y+height), (0, 255, 0), 3)
             frame = cv2.putText(frame, details["text"][i], (x, y), cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
-
-    print(game.text)
+    
+    print("Text: {%s} | Ingredients: {%s}" % (game.text, game.get_recipe(game.text)))
     # Downscale the frame so it isn't massive
     resized_width = int(frame.shape[1] * resize_scale_percent)
     resized_height = int(frame.shape[0] * resize_scale_percent)

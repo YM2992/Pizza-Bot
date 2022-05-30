@@ -1,13 +1,6 @@
 from asyncio.windows_events import NULL
 from inspect import modulesbyfile
 import os
-import cv2
-import numpy as np
-import pyautogui
-import pygetwindow as gw
-import PIL.ImageGrab as ImageGrab
-import imutils
-import time
 import psutil
 
 
@@ -44,7 +37,6 @@ def tap(x,y):
 		os.chdir(orig_dir)
 	except Exception as e:
 		print(e)
-		cv2.destroyAllWindows()
 		input('>> adb failed, press Enter to continue')
 
 drag_duration = 100
@@ -56,5 +48,4 @@ def drag(x1, y1, x2, y2):
 		os.chdir(orig_dir)
 	except Exception as e:
 		print(e)
-		cv2.destroyAllWindows()
 		input('>> adb failed, press Enter to continue')
