@@ -29,6 +29,13 @@ class Game:
         "mushroom": (1530, 235),
         "eggplant": (1820, 235),
         "olive": (1820, 510),
+        
+        "paddle_0": (795, 930),
+        "oven_entry": (2000, 680),
+        "move_to_cutting": (10, 680),
+        "oven_exit": (145, 580),
+        "cutting_board": (850, 560),
+        "cutting_tool": (1100, 285)
     }
     # Counts
     dough_count = 0
@@ -46,14 +53,23 @@ class Game:
 
         # Update customer dialogue text box bounds
         self.update_text_bounds()
-    
+
+        # Set ingredient_positions to be proportionate to the current width and height
+        for i in self.ingredient_positions:
+            i_x, i_y = self.ingredient_positions.get(i)[0], self.ingredient_positions.get(i)[1]
+            i_x = int(i_x / 2352 * self.window.width)
+            i_y = int(i_y / 1119 * self.window.height)
+        
+        print(self.ingredient_positions)
+            
+
     # Update the bounds of text capture when the ABD window is resized
     def update_text_bounds(self):        
         self.text_bounds = {
-            'x': int(570 / 2352 * self.window.width),
+            'x': int(590 / 2352 * self.window.width),
             'y': int(175 / 1119 * self.window.height),
-            'width': int(1500 / 2352 * self.window.width),
-            'height': int(330 / 1119 * self.window.height)
+            'width': int(1480 / 2352 * self.window.width),
+            'height': int(650 / 1119 * self.window.height)
         }
 
         self.text_bounds["width"] = self.text_bounds["x"] + self.text_bounds["width"]
@@ -112,15 +128,12 @@ class Game:
         
         return self.requested_ingredients
 
-    def get_recipe(self):
-        pass
 
     def get_ingredient_position(self, ingredient):
         return self.ingredient_positions[ingredient]
 
     def place_in_circle(self):
         total_ingredients = 18
-        theta = math.radians(360 / total_ingredients)
         radius = 160
 
         centre_x, centre_y = self.get_ingredient_position("base_0")
@@ -130,6 +143,26 @@ class Game:
             x = radius * math.cos(theta) + centre_x
             y = radius * math.sin(theta) + centre_y
             self.click(x, y)
+    
+    def bake_pizza(self):
+        self.dragTo(self.get_ingredient_position("paddle_0"), self.get_ingredient_position("oven_entry"))
+        print("!!!!! BAKING PIZZA !!!!!")
+    
+    def cut_pizza(self):
+        print("!!!!! CUTTING PIZZA !!!!!")
+
+        cuts = 6
+        radius = 300
+
+        centre_x, centre_y = self.get_ingredient_position("cutting_board")
+
+        for i in range(1, cuts + 1):
+            theta = math.radians(360 / cuts * i)
+            x = radius * math.cos(theta) + centre_x
+            y = radius * math.sin(theta) + centre_y
+
+            self.dragTo(self.get_ingredient_position("cutting_tool"), (x, y))
+
 
     def make_pizza(self):
         if self._making_pizza:
@@ -143,9 +176,9 @@ class Game:
         # Click dough
         doughposx, doughposy = self.get_ingredient_position(f"dough_{self.dough_count}")
         print(doughposx, doughposy, self.dough_count)
-        self.click(doughposx, doughposy)
+        self.click(doughposx, doughposy, print_text="dough")
         self.dough_count += 1
-        time.sleep(0.5)
+        time.sleep(2)
 
         # For each ingredient
             # MoveTo ingredient
@@ -153,27 +186,47 @@ class Game:
             # Click base
         base_x, base_y = self.get_ingredient_position("base_0")
         for ingredient in self.requested_ingredients:
-            time.sleep(0.5)
+            time.sleep(0.25)
             ingredient_x, ingredient_y = self.get_ingredient_position(ingredient)
-            self.click(ingredient_x, ingredient_y)
+            self.click(ingredient_x, ingredient_y, pause=True, print_text="ingredient", clicks=2)
 
             self.place_in_circle()
             # self.click(base_x, base_y)
         
+        # Pizza made, now bake it
+        self.bake_pizza()
+
+        # Scroll screen to cutting board
+        self.dragTo(self.get_ingredient_position("oven_entry"), self.get_ingredient_position("move_to_cutting"))
+        self.dragTo(self.get_ingredient_position("oven_entry"), self.get_ingredient_position("move_to_cutting"))
+        # self.drag((2000, 680), (10, 680))
+
+        # Wait for the pizza to be cooked
+        time.sleep(9)
+
+        # Drag pizza onto the cutting board
+        self.dragTo(self.get_ingredient_position("oven_exit"), self.get_ingredient_position("cutting_board"))
+        # self.drag((200, 570), (1600, 520))
+
+        # Cut pizza
+        self.cut_pizza()
+
         self._making_pizza = False
 
     ### Actions
     # CHeck if provided (x, y) coordinates are within the window's bounds
     def is_in_bounds(self, x, y):
         if (x + self.window.left > self.window.width + self.window.left) or (y + self.window.top > self.window.height + self.window.top):
+            print("COORDS {%s,%s} OUT OF BOUNDS" % (x, y))
             return False
         return True
     
-    # Click on the website
-    def click(self, x, y):
-        print("CLICKED x%s y%s" % (x, y))
+    # Click the mouse at (x, y)
+    def click(self, x, y, pause=False, print_text="", clicks=1):
+        if print_text:
+            print("%s CLICKED x%s y%s" % (print_text, x, y))
 
-        if not self.is_in_bounds:
+        if not self.is_in_bounds(x, y):
             return
 
         # Calculate (x, y) in terms of the window position
@@ -181,17 +234,25 @@ class Game:
         y += self.window.top
 
         # Move cursor to (x, y)
-        pyautogui.moveTo(x, y, _pause=False)
-
         # Click mouse
-        pyautogui.click(button="left")
+        mouse_duration = 0
+        if pause:
+            mouse_duration = 0.05
+        else:
+            mouse_duration = 0.1
+        time.sleep(0.01)
+        pyautogui.click(x=x, y=y, button="left", clicks=clicks, _pause=False, duration=0)
+        time.sleep(0.01)
 
-    def drag(self, drag_from, drag_to):
-        if not self.is_in_bounds:
-            return
-
+    # Drag the mouse from drag_from(x,y) to drag_to(x,y)
+    def dragTo(self, drag_from, drag_to):
         from_x, from_y = drag_from
         to_x, to_y = drag_to
+
+        if not self.is_in_bounds(from_x, from_y):
+            return print("dragTo FROM NOT IN BOUNDS")
+        if not self.is_in_bounds(to_x, to_y):
+            return print("dragTo TO NOT IN BOUNDS")
 
         # Calculate x, y coordinates in terms of the window position
         from_x += self.window.left
@@ -200,8 +261,15 @@ class Game:
         to_x += self.window.left
         to_y += self.window.top
 
+        print("DRAGGING FROM %s to %s" % (drag_from, drag_to))
+
         # Move cursor to (from_x, from_y)
-        pyautogui.moveTo(from_x, from_y, _pause=False)
+        pyautogui.moveTo(from_x, from_y, duration=0.1)
 
         # Drag cursor to (to_x, to_y)
-        pyautogui.dragTo(to_x, to_y, button="left")
+        pyautogui.dragTo(to_x, to_y, button="left", duration=0.5)
+    
+    # Drag the mouse from current(x,y) to drag_to(x,y)
+    def drag(self, x, y):
+        current_x, current_y = self.position()
+        self.dragTo((current_x, current_y), (x, y))
