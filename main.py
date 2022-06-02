@@ -29,6 +29,7 @@ def handle_click(event, x, y, flags, param):
     global dbclick_armed
     if event == cv2.EVENT_LBUTTONDOWN:
         if dbclick_armed:
+            time.sleep(1)
             game.make_pizza()
             dbclick_armed = False
         else:
@@ -54,6 +55,7 @@ def in_motion(last_frame, frame):
 
 last_frame = get_frame()
 
+what_clicked = False
 ok_btn_details = None
 reading_progress = 0
 reading_ingredients_complete = False
@@ -73,14 +75,14 @@ while True:
 
     threshold_img = cv2.threshold(threshold_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     # Extract text data from image
-    custom_config = r'--oem 3 --psm 6'
+    custom_config = r'--oem 3 --psm 12'
     details = pytesseract.image_to_data(threshold_img, output_type=Output.DICT, config=custom_config, lang="eng")
     
-    game.text = ""
+    game._text = ""
     # Loop through recognised text and apply a border to each word
     for i in range(len(details["text"])):
-        if int(float(details["conf"][i])) > 35:
-            game.text += details["text"][i] + " "
+        if int(float(details["conf"][i])) > 25:
+            game._text += details["text"][i] + " "
 
             (x, y, width, height) = (details["left"][i], details["top"][i], details["width"][i], details["height"][i])
             
@@ -101,7 +103,8 @@ while True:
 
 
             if "what?" in details["text"][i].lower():
-                game.click(int(x + 0.5 * width), int(y + 0.5 * height), print_text="what?")
+                if what_clicked == False:
+                    game.click(int(x + 0.5 * width), int(y + 0.5 * height), print_text="what?")
             
             if "hint" in details["text"][i].lower():
                 on_hint_page = True
@@ -118,19 +121,22 @@ while True:
                         "text": details["text"][i]
                     }
 
-    ingredients = game.get_ingredients(game.text)
+    # if not dbclick_armed:
+    #     print("TEXT: {%s} | ORDER: %s" % (game._text, game.get_order()))
+    ingredients = game.get_order()
     if not on_hint_page:
-        print("Text: {%s} | Ingredients: {%s}" % (game.text, ingredients))
+        # print("Text: {%s} | Ingredients: {%s}" % (game._text, ingredients))
+        pass
     else:
         if ok_btn_details and not reading_ingredients_complete:
-            if reading_progress < 20:
+            if reading_progress < 15:
                 reading_progress += 1
                 print("reading_progress=%s/20" % (reading_progress))
             else:
                 reading_progress = 0
                 reading_ingredients_complete = True
 
-        if reading_ingredients_complete and ok_btn_details and len(game.requested_ingredients) > 0:
+        if reading_ingredients_complete and ok_btn_details:
             print(ok_btn_details)
             (ok_x, ok_y, ok_w, ok_h) = (ok_btn_details["left"], ok_btn_details["top"], ok_btn_details["width"], ok_btn_details["height"])
             game.click(int(ok_x + ok_w), int(ok_y + ok_h), print_text="okayButton")
@@ -139,6 +145,7 @@ while True:
             print("PIZZA INGREDIENTS %s" % (ingredients))
             game.make_pizza()
 
+            what_clicked = False
             on_hint_page = False
             ok_btn_details = None
             reading_ingredients_complete = False
