@@ -7,6 +7,7 @@ from pytesseract import Output
 from capture import *
 from game import Game
 import imutils
+import textwrap
 
 # Cleanup when script is exited
 import atexit
@@ -123,7 +124,7 @@ while True:
 
     # if not dbclick_armed:
     #     print("TEXT: {%s} | ORDER: %s" % (game._text, game.get_order()))
-    ingredients = game.get_order()
+    order = game.get_order()
     if not on_hint_page:
         # print("Text: {%s} | Ingredients: {%s}" % (game._text, ingredients))
         pass
@@ -142,7 +143,7 @@ while True:
             game.click(int(ok_x + ok_w), int(ok_y + ok_h), print_text="okayButton")
             time.sleep(2)
 
-            print("PIZZA INGREDIENTS %s" % (ingredients))
+            print("PIZZA ORDER %s" % (order))
             game.make_pizza()
 
             what_clicked = False
@@ -156,14 +157,14 @@ while True:
     resized_height = int(frame.shape[0] * resize_scale_percent)
     frame = cv2.resize(frame, dsize=(resized_width, resized_height), interpolation=cv2.INTER_AREA)
 
-    threshold_img = imutils.resize(threshold_img, height=450)
-
+    threshold_img = imutils.resize(threshold_img, width=750)
+    
 
     # Add an empty border to the frame image so that we can numpy stack it
-    if frame.shape[0] < threshold_img.shape[0]:
-        frame = cv2.copyMakeBorder(frame, 0, 0, 0, threshold_img.shape[1]-frame.shape[1], borderType=cv2.BORDER_CONSTANT)
+    if frame.shape[1] < threshold_img.shape[1]:
+        frame = cv2.copyMakeBorder(frame, 0, threshold_img.shape[0]-frame.shape[0], 0, 0, borderType=cv2.BORDER_CONSTANT)
     else:
-        threshold_img = cv2.copyMakeBorder(threshold_img, 0, 0, 0, frame.shape[1]-threshold_img.shape[1], borderType=cv2.BORDER_CONSTANT)
+        threshold_img = cv2.copyMakeBorder(threshold_img, 0, frame.shape[0]-threshold_img.shape[0], 0, 0, borderType=cv2.BORDER_CONSTANT)
     
     # Time taken for code execution in seconds
     frame = cv2.putText(frame, "{:.2f}".format(time.time() - start_time)+"s", (0, 30), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1, (0, 0, 255), 3)
@@ -171,10 +172,25 @@ while True:
     # Convert the threshold image to RGB so that it has the same size as the frame
     threshold_img = cv2.cvtColor(threshold_img, cv2.COLOR_GRAY2RGB)
     
-    # Vertically stack the frame and threshold images
-    concatenation = np.vstack((frame, threshold_img))
+    # Horizontally stack the frame and threshold images
+    concatenation = np.hstack((frame, threshold_img))
+    
+    blank_img = np.zeros((concatenation.shape[0], concatenation.shape[1], 3), np.uint8)
+    blank_img_text = f"Text:\n{game._text}\n-\n-\nOrder:\n{order}"
+    blank_img_text = blank_img_text.split('\n')
+    blank_img_text = [line for para in blank_img_text for line in textwrap.wrap(para, width=45, break_long_words=False, replace_whitespace=False)]
+    for i, line in enumerate(blank_img_text):
+        line_gap = cv2.getTextSize(line, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=2, thickness=2)[0][1] + 10
+
+        x = 0
+        y = int(30 + i * line_gap)
+
+        blank_img = cv2.putText(blank_img, line, (x, y), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=2, color=(255, 255, 255), thickness=2)
+
+    # concatenation = np.vstack((concatenation, blank_img))
 
     cv2.imshow("pizza_game_capture", concatenation)
+    cv2.imshow("pizza_game_log", blank_img)
 
     # Quit application when "Q" pressed
     if cv2.waitKey(1) == ord("q"):

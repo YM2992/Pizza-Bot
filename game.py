@@ -33,7 +33,7 @@ class Game:
         "olive": (2080, 510),
         
         "paddle_0": (1055, 930),
-        "oven_entry": (2260, 680),
+        "oven_entry": (2200, 680),
 
         "oven_exit": (100, 570),
         "move_to_cutting": (50, 680),
@@ -74,7 +74,8 @@ class Game:
             i_x, i_y = self.positions.get(i)[0], self.positions.get(i)[1]
             i_x = int(i_x / 2352 * self.window.width)
             i_y = int(i_y / 1119 * self.window.height)
-            
+
+            self.positions[i] = (i_x, i_y)            
 
     # Update the bounds of text capture when the ABD window is resized
     def update_text_bounds(self):        
@@ -314,23 +315,22 @@ class Game:
 
         self._making_pizza = True
         
-        self.move_to_cutting_board(reversed=True)
-        
-        # MoveTo dough
-        # Click dough
-        doughposx, doughposy = self.get_ingredient_position(f"dough_{self.dough_count}")
-        print(doughposx, doughposy, self.dough_count)
-        self.click(doughposx, doughposy, print_text="dough")
-        self.dough_count += 1
-        time.sleep(2)
+        # self.move_to_cutting_board(reversed=True)
 
         # Go through each pizza order
         for index, pizza in enumerate(self._order):
             # If this is the second or third.. pizza then move back to the prepping board
             # index = self._order.index(pizza)
-            if index > 0:
-                self.move_to_cutting_board(reversed=True)
-            # self.move_to_cutting_board(reversed=True)
+            # if index > 0:
+            #     self.move_to_cutting_board(reversed=True)
+            self.move_to_cutting_board(reversed=True)
+
+            # Spread dough onto paddle
+            doughposx, doughposy = self.get_ingredient_position(f"dough_{self.dough_count}")
+            print(doughposx, doughposy, self.dough_count)
+            self.click(doughposx, doughposy, print_text="dough")
+            self.dough_count += 1
+            time.sleep(2)
 
             # Place toppings on pizza
             for topping in pizza["toppings_0"]:
